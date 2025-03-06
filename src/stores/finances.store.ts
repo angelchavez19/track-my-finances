@@ -1,10 +1,15 @@
 import { defineStore } from 'pinia'
 import type { Settings, Transaction } from 'src/interfaces'
+import { ref } from 'vue'
 
 export const useFinancesStore = defineStore('finances', () => {
   const dbName = 'financesDB'
   const dbVersion = 1
   let db: IDBDatabase | null = null
+
+  const balance = ref<number>(0)
+  const settings = ref<Settings>()
+  const transactions = ref<Transaction[]>([])
 
   const openDB = (): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -71,42 +76,49 @@ export const useFinancesStore = defineStore('finances', () => {
       const transaction = db.transaction('settings', 'readwrite')
       const store = transaction.objectStore('settings')
       store.put({ id: 1, balance: newBalance, init })
+      balance.value = newBalance
+      settings.value = { balance: newBalance, init }
 
       transaction.oncomplete = () => resolve()
       transaction.onerror = () => reject(new Error(transaction.error?.message))
     })
   }
 
-  const addTransaction = (
-    amount: number,
-    description: string,
-    category = 'Otro',
-    method = 'Efectivo',
-  ): Promise<void> => {
+  const addTransaction = (amount: number, description: string): Promise<void> => {
     return new Promise((resolve, reject) => {
-      if (!db) return reject(new Error('DB no inicializada'))
-
-      const transaction = db.transaction(['transactions', 'settings'], 'readwrite')
-      const transactionsStore = transaction.objectStore('transactions')
-      const settingsStore = transaction.objectStore('settings')
-
       getBalance()
         .then((currentBalance) => {
+          if (!db) return reject(new Error('DB no inicializada'))
+
+          const transaction = db.transaction(['transactions', 'settings'], 'readwrite')
+          const transactionsStore = transaction.objectStore('transactions')
+          const settingsStore = transaction.objectStore('settings')
+
           const newTransaction = {
             amount,
             description,
             date: new Date().toISOString(),
-            category,
-            method,
           }
 
-          transactionsStore.add(newTransaction)
-          settingsStore.put({ id: 1, balance: currentBalance + amount })
+          const request = transactionsStore.add(newTransaction)
+          request.onerror = () => reject(new Error(request.error?.message))
+
+          const settingsRequest = settingsStore.put({
+            id: 1,
+            balance: currentBalance + amount,
+            init: true,
+          })
+          balance.value = currentBalance + amount
+          settings.value = { balance: currentBalance + amount, init: true }
+          transactions.value.push(newTransaction)
+          settingsRequest.onerror = () => reject(new Error(settingsRequest.error?.message))
 
           transaction.oncomplete = () => resolve()
           transaction.onerror = () => reject(new Error(transaction.error?.message))
         })
-        .catch((err) => reject(new Error(err.error?.message)))
+        .catch((err) => {
+          reject(new Error(err.message))
+        })
     })
   }
 
@@ -123,6 +135,13 @@ export const useFinancesStore = defineStore('finances', () => {
     })
   }
 
+  const mount = async () => {
+    await openDB()
+    balance.value = await getBalance()
+    settings.value = await getSettings()
+    transactions.value = (await getTransactions()).reverse()
+  }
+
   return {
     openDB,
     getBalance,
@@ -130,5 +149,9 @@ export const useFinancesStore = defineStore('finances', () => {
     updateBalance,
     addTransaction,
     getTransactions,
+    mount,
+    balance,
+    settings,
+    transactions,
   }
 })

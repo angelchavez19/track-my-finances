@@ -4,7 +4,7 @@
       <router-view />
     </q-page-container>
 
-    <q-footer class="bg-primary">
+    <!-- <q-footer class="bg-primary">
       <q-tabs v-model="tab" class="text-teal">
         <q-route-tab to="/app" exact icon="home" label="Home" class="text-white" />
         <q-route-tab
@@ -23,12 +23,14 @@
           class="text-white"
         />
       </q-tabs>
-    </q-footer>
+    </q-footer> -->
   </q-layout>
 </template>
 
+//
 <script setup lang="ts">
-import { ref } from "vue";
+// import { ref } from "vue";
 
-const tab = ref("home");
+// const tab = ref("home");
+//
 </script>

@@ -13,6 +13,6 @@ const finances = useFinancesStore();
 $q.dark.set(true);
 
 onMounted(async () => {
-  await finances.openDB();
+  await finances.mount();
 });
 </script>
