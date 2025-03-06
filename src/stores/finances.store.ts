@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { Settings, Transaction } from 'src/interfaces'
+import type { Backup, Settings, Transaction } from 'src/interfaces'
 import { ref } from 'vue'
 
 export const useFinancesStore = defineStore('finances', () => {
@@ -135,6 +135,48 @@ export const useFinancesStore = defineStore('finances', () => {
     })
   }
 
+  const loadData = async (data: Backup) => {
+    if (!db) throw new Error('DB no inicializada')
+
+    const transaction = db.transaction(['settings', 'transactions'], 'readwrite')
+    const settingsStore = transaction.objectStore('settings')
+    const transactionsStore = transaction.objectStore('transactions')
+
+    try {
+      if (data.settings) {
+        await new Promise<void>((resolve, reject) => {
+          const request = settingsStore.put({
+            id: 1,
+            balance: data.settings.balance,
+            init: data.settings.init,
+          })
+          request.onsuccess = () => resolve()
+          request.onerror = () => reject(new Error(request.error?.message))
+        })
+      }
+
+      if (data.transactions && data.transactions.length > 0) {
+        await Promise.all(
+          data.transactions.map(
+            (transaction) =>
+              new Promise<void>((resolve, reject) => {
+                const request = transactionsStore.add(transaction)
+                request.onsuccess = () => resolve()
+                request.onerror = () => reject(new Error(request.error?.message))
+              }),
+          ),
+        )
+      }
+
+      balance.value = data.settings.balance
+      settings.value = data.settings
+      transactions.value = (await getTransactions()).reverse()
+    } catch (error) {
+      console.error('Error al cargar los datos:', error)
+      throw error
+    }
+  }
+
   const mount = async () => {
     await openDB()
     balance.value = await getBalance()
@@ -149,6 +191,7 @@ export const useFinancesStore = defineStore('finances', () => {
     updateBalance,
     addTransaction,
     getTransactions,
+    loadData,
     mount,
     balance,
     settings,

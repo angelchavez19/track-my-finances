@@ -16,6 +16,28 @@ onMounted(async () => {
     await router.push("/");
   }
 });
+
+const download = async () => {
+  const jsonString = JSON.stringify(
+    {
+      settings: await store.getSettings(),
+      transactions: await store.getTransactions(),
+    },
+    null,
+    2
+  );
+  const blob = new Blob([jsonString], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `#track-my-finances-[${new Date()
+    .toLocaleString()
+    .replace(" ", "-")}].json`;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(url);
+};
 </script>
 
 <template>
@@ -54,6 +76,14 @@ onMounted(async () => {
       </q-list>
       <p v-else>Transactions not found</p>
     </div>
+
+    <q-btn
+      fab
+      color="primary"
+      icon="download"
+      class="absolute-top-right q-mt-xs q-mr-xs"
+      @click="download"
+    />
   </q-page>
 </template>
 

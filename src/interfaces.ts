@@ -8,3 +8,8 @@ export interface Settings {
   balance: number
   init: boolean
 }
+
+export interface Backup {
+  settings: Settings
+  transactions: Transaction[]
+}
